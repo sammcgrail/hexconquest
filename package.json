@@ -1,0 +1,15 @@
+{
+  "name": "hexconquest",
+  "version": "1.0.0",
+  "description": "4-player bot battler on a hex grid",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0",
+    "better-sqlite3": "^11.6.0",
+    "uuid": "^10.0.0"
+  }
+}

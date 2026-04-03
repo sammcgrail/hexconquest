@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hex Conquest</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #09090b; color: #e4e4e7; font-family: 'Courier New', monospace;
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  }
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 20px; border-bottom: 1px solid #27272a;
+  }
+  header h1 { font-size: 20px; color: #fafafa; }
+  #tick-display { font-size: 14px; color: #a1a1aa; }
+  #phase-display { font-size: 14px; padding: 3px 10px; border-radius: 4px; }
+  .phase-waiting { background: #854d0e; color: #fef08a; }
+  .phase-playing { background: #166534; color: #86efac; }
+  .phase-finished { background: #7f1d1d; color: #fca5a5; }
+  main { display: flex; flex: 1; overflow: hidden; }
+  #canvas-wrap { flex: 1; position: relative; }
+  canvas { width: 100%; height: 100%; display: block; }
+  #sidebar {
+    width: 280px; border-left: 1px solid #27272a; padding: 12px;
+    overflow-y: auto; flex-shrink: 0;
+  }
+  .panel { margin-bottom: 16px; }
+  .panel h2 { font-size: 13px; color: #71717a; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; }
+  .player-card {
+    padding: 8px; border-radius: 6px; margin-bottom: 6px;
+    background: #18181b; border: 1px solid #27272a;
+  }
+  .player-card.dead { opacity: 0.4; }
+  .player-name { font-weight: bold; font-size: 14px; }
+  .player-stats { font-size: 12px; color: #a1a1aa; margin-top: 4px; }
+  .player-stats span { margin-right: 10px; }
+  .combat-entry { font-size: 11px; color: #a1a1aa; margin-bottom: 4px; padding: 4px; background: #18181b; border-radius: 4px; }
+  .leaderboard-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #1e1e1e; }
+  .leaderboard-row .name { color: #e4e4e7; }
+  .leaderboard-row .score { color: #a1a1aa; }
+  #status-msg {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 18px; color: #71717a; text-align: center; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Hex Conquest</h1>
+  <div style="display:flex;gap:16px;align-items:center;">
+    <span id="tick-display">Tick 0 / 200</span>
+    <span id="phase-display" class="phase-waiting">WAITING</span>
+  </div>
+</header>
+<main>
+  <div id="canvas-wrap">
+    <canvas id="hex-canvas"></canvas>
+    <div id="status-msg">Connecting...</div>
+  </div>
+  <div id="sidebar">
+    <div class="panel" id="players-panel">
+      <h2>Players</h2>
+      <div id="players-list"></div>
+    </div>
+    <div class="panel">
+      <h2>Combat Log</h2>
+      <div id="combat-log"></div>
+    </div>
+    <div class="panel">
+      <h2>Leaderboard</h2>
+      <div id="leaderboard"></div>
+    </div>
+  </div>
+</main>
+<script>
+(function() {
+  var canvas = document.getElementById("hex-canvas");
+  var ctx = canvas.getContext("2d");
+  var statusMsg = document.getElementById("status-msg");
+  var gameState = null;
+  var HEX_RADIUS = 10;
+
+  // Hex drawing params
+  var hexSize = 22;
+  var centerX = 0, centerY = 0;
+
+  function resizeCanvas() {
+    var wrap = document.getElementById("canvas-wrap");
+    canvas.width = wrap.clientWidth * devicePixelRatio;
+    canvas.height = wrap.clientHeight * devicePixelRatio;
+    canvas.style.width = wrap.clientWidth + "px";
+    canvas.style.height = wrap.clientHeight + "px";
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    centerX = wrap.clientWidth / 2;
+    centerY = wrap.clientHeight / 2;
+    // Adjust hex size to fit
+    var minDim = Math.min(wrap.clientWidth, wrap.clientHeight);
+    hexSize = Math.floor(minDim / (HEX_RADIUS * 2 + 3) / 1.8);
+    if (hexSize < 10) hexSize = 10;
+    if (hexSize > 30) hexSize = 30;
+    render();
+  }
+
+  // Flat-top hex: x = size * (3/2 * q), y = size * (sqrt(3)/2 * q + sqrt(3) * r)
+  var sqrt3 = Math.sqrt(3);
+  function hexToPixel(q, r) {
+    var x = hexSize * (1.5 * q);
+    var y = hexSize * (sqrt3 / 2 * q + sqrt3 * r);
+    return { x: centerX + x, y: centerY + y };
+  }
+
+  function drawHex(cx, cy, size, fill, stroke) {
+    ctx.beginPath();
+    for (var i = 0; i < 6; i++) {
+      var angle = Math.PI / 180 * (60 * i);
+      var hx = cx + size * Math.cos(angle);
+      var hy = cy + size * Math.sin(angle);
+      if (i === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+
+  var TYPE_COLORS = {
+    plain: "#1a1a2e",
+    resource: "#1a2e1a",
+    mountain: "#3a3a3a"
+  };
+  var OWNER_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308"];
+  var OWNER_BG = [
+    "rgba(239,68,68,0.25)",
+    "rgba(59,130,246,0.25)",
+    "rgba(34,197,94,0.25)",
+    "rgba(234,179,8,0.25)"
+  ];
+
+  function render() {
+    ctx.clearRect(0, 0, canvas.width / devicePixelRatio, canvas.height / devicePixelRatio);
+    if (!gameState || !gameState.hexes) return;
+
+    for (var hex of gameState.hexes) {
+      var p = hexToPixel(hex.q, hex.r);
+      var fill = TYPE_COLORS[hex.type] || TYPE_COLORS.plain;
+      var stroke = "#27272a";
+
+      if (hex.owner !== null && hex.owner !== undefined) {
+        fill = OWNER_BG[hex.owner] || fill;
+        stroke = OWNER_COLORS[hex.owner] || stroke;
+      }
+      if (hex.type === "mountain") {
+        fill = "#3a3a3a";
+        stroke = "#555";
+      }
+      if (hex.type === "resource" && hex.owner === null) {
+        fill = "#1a2e1a";
+        stroke = "#4ade80";
+      }
+
+      drawHex(p.x, p.y, hexSize - 1, fill, stroke);
+
+      // Resource marker
+      if (hex.type === "resource") {
+        ctx.fillStyle = "#4ade80";
+        ctx.font = (hexSize * 0.4) + "px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("$", p.x, p.y - hexSize * 0.25);
+      }
+
+      // Mountain marker
+      if (hex.type === "mountain") {
+        ctx.fillStyle = "#888";
+        ctx.font = (hexSize * 0.5) + "px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("\u25B2", p.x, p.y);
+      }
+
+      // Units
+      if (hex.units > 0 && hex.type !== "mountain") {
+        ctx.fillStyle = hex.owner !== null ? (OWNER_COLORS[hex.owner] || "#fff") : "#fff";
+        ctx.font = "bold " + (hexSize * 0.45) + "px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        var label = hex.hasKing ? "\u265A" + hex.units : "" + hex.units;
+        ctx.fillText(label, p.x, p.y + (hex.type === "resource" ? hexSize * 0.15 : 0));
+      }
+    }
+  }
+
+  function updateUI() {
+    if (!gameState) return;
+
+    // Tick
+    document.getElementById("tick-display").textContent =
+      "Tick " + (gameState.tick || 0) + " / " + (gameState.maxTicks || 200);
+
+    // Phase
+    var phaseEl = document.getElementById("phase-display");
+    var phase = gameState.phase || "waiting";
+    phaseEl.textContent = phase.toUpperCase();
+    phaseEl.className = "phase-" + phase;
+
+    // Players
+    var html = "";
+    if (gameState.players) {
+      for (var i = 0; i < gameState.players.length; i++) {
+        var p = gameState.players[i];
+        html += '<div class="player-card' + (p.alive ? '' : ' dead') + '">';
+        html += '<div class="player-name" style="color:' + p.color + '">' +
+          (p.alive ? '' : '\u2620 ') + escHtml(p.name) + '</div>';
+        html += '<div class="player-stats">';
+        html += '<span>\u2B22 ' + (p.territory || 0) + '</span>';
+        html += '<span>\u2694 ' + (p.totalUnits || 0) + '</span>';
+        html += '<span>\uD83D\uDCB0 ' + (p.gold || 0) + '</span>';
+        html += '</div></div>';
+      }
+    }
+    document.getElementById("players-list").innerHTML = html;
+
+    // Combat log
+    var logHtml = "";
+    if (gameState.combatLog) {
+      for (var e of gameState.combatLog) {
+        if (e.type === "combat") {
+          var aName = gameState.players[e.attacker] ? gameState.players[e.attacker].name : "?";
+          var dName = gameState.players[e.defender] ? gameState.players[e.defender].name : "?";
+          logHtml += '<div class="combat-entry">' +
+            escHtml(aName) + ' (' + e.attackerUnits + ') vs ' +
+            escHtml(dName) + ' (' + e.defenderUnits + ') \u2192 ' +
+            e.result.replace(/_/g, ' ') +
+            (e.kingCaptured ? ' \u{1F451}' : '') +
+            '</div>';
+        } else if (e.type === "spawn") {
+          var sName = gameState.players[e.player] ? gameState.players[e.player].name : "?";
+          logHtml += '<div class="combat-entry">' + escHtml(sName) + ' spawned ' + e.units + ' units</div>';
+        }
+      }
+    }
+    document.getElementById("combat-log").innerHTML = logHtml || '<div style="color:#52525b;font-size:12px;">No combat this tick</div>';
+
+    statusMsg.style.display = "none";
+    render();
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  // Leaderboard
+  function loadLeaderboard() {
+    fetch("/api/leaderboard").then(function(r) { return r.json(); }).then(function(data) {
+      var html = "";
+      for (var i = 0; i < data.length && i < 10; i++) {
+        html += '<div class="leaderboard-row"><span class="name">' +
+          escHtml(data[i].name) + '</span><span class="score">' +
+          data[i].wins + 'W / ' + data[i].games + 'G</span></div>';
+      }
+      document.getElementById("leaderboard").innerHTML = html || '<div style="color:#52525b;font-size:12px;">No games played yet</div>';
+    }).catch(function() {});
+  }
+  loadLeaderboard();
+  setInterval(loadLeaderboard, 15000);
+
+  // WebSocket
+  function connect() {
+    var proto = location.protocol === "https:" ? "wss:" : "ws:";
+    var ws = new WebSocket(proto + "//" + location.host);
+    ws.onopen = function() { statusMsg.textContent = "Connected"; };
+    ws.onmessage = function(e) {
+      try {
+        var msg = JSON.parse(e.data);
+        if (msg.type === "state" && msg.game) {
+          gameState = msg.game;
+          updateUI();
+        } else if (msg.type === "state" && !msg.game) {
+          statusMsg.style.display = "block";
+          statusMsg.textContent = "Waiting for bots...";
+        } else if (msg.type === "game_over") {
+          loadLeaderboard();
+        }
+      } catch (err) {}
+    };
+    ws.onclose = function() {
+      statusMsg.style.display = "block";
+      statusMsg.textContent = "Disconnected. Reconnecting...";
+      setTimeout(connect, 2000);
+    };
+    ws.onerror = function() { ws.close(); };
+  }
+  connect();
+
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+})();
+</script>
+</body>
+</html>
