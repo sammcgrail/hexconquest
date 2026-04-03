@@ -93,7 +93,7 @@
 
   /* Combat log */
   #combat-log {
-    max-height: 200px; overflow-y: auto;
+    height: 200px; overflow-y: auto;
     scrollbar-width: thin; scrollbar-color: #27272a transparent;
   }
   #combat-log::-webkit-scrollbar { width: 4px; }
@@ -183,6 +183,10 @@
     50% { opacity: 1; }
   }
 
+  /* Fixed panel heights — prevent layout bounce */
+  #players-list { max-height: 180px; overflow-y: auto; }
+  #leaderboard { max-height: 120px; overflow-y: auto; }
+
   /* Mobile */
   @media (max-width: 768px) {
     main { flex-direction: column; }
@@ -193,6 +197,9 @@
     #canvas-wrap { min-height: 50vh; }
     header h1 { font-size: 16px; }
     .tick-bar-wrap { width: 80px; }
+    #combat-log { height: 150px; }
+    #players-list { max-height: 140px; }
+    #leaderboard { max-height: 100px; }
   }
 </style>
 </head>
