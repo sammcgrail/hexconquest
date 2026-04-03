@@ -23,7 +23,7 @@ var BOTS_DIR = path.join(__dirname, "data", "bots");
 var PLAYER_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308"];
 var PLAYER_NAMES = ["Red", "Blue", "Green", "Yellow"];
 // Fixed color assignments per bot name: bmo=red, calne=blue, seb=green, tinyclaw=yellow
-var BOT_COLORS = { "bmo": "#ef4444", "calne": "#3b82f6", "seb": "#22c55e", "tinyclaw": "#eab308" };
+var BOT_COLORS = { "bmo": "#ef4444", "calne": "#3b82f6", "seb": "#22c55e", "tinyclaw": "#eab308", "astro": "#a855f7" };
 var SPAWN_POSITIONS = [
   { q: 8, r: -8 },   // Player 0: top-right
   { q: -8, r: 8 },   // Player 1: bottom-left
@@ -206,13 +206,12 @@ function createGame() {
     return null;
   }
 
-  // Take up to 4 bots, shuffle spawn order for fairness
-  var activeBots = bots.slice(0, 4);
-  // Fisher-Yates shuffle
-  for (var si = activeBots.length - 1; si > 0; si--) {
+  // Shuffle all bots first, then take up to 4 — ensures fair rotation when >4 bots
+  for (var si = bots.length - 1; si > 0; si--) {
     var sj = Math.floor(Math.random() * (si + 1));
-    var tmp = activeBots[si]; activeBots[si] = activeBots[sj]; activeBots[sj] = tmp;
+    var tmp = bots[si]; bots[si] = bots[sj]; bots[sj] = tmp;
   }
+  var activeBots = bots.slice(0, 4);
   var hexes = generateMap();
 
   var players = [];
