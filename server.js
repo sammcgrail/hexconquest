@@ -111,19 +111,47 @@ function generateMap() {
     mountainCount++;
   }
 
-  // Place resource hexes (~8, not on spawns, mountains)
-  var resourceCount = 0;
-  shuffled = allKeys.slice().sort(function() { return Math.random() - 0.5; });
-  for (var key of shuffled) {
-    if (resourceCount >= 8) break;
+  // Place resource hexes (~8, balanced across players)
+  // Strategy: 2 resources per quadrant (nearest to each spawn) + ensure min spacing
+  var resourceCandidates = allKeys.filter(function(key) {
     var hex = hexes.get(key);
-    if (hex.type !== "plain") continue;
-    if (spawnNeighborKeys.has(key)) continue;
-    // Place resources in middle band (distance 3-8 from center)
+    if (hex.type !== "plain") return false;
+    if (spawnNeighborKeys.has(key)) return false;
     var dist = hexDistance(0, 0, hex.q, hex.r);
-    if (dist < 3 || dist > 8) continue;
-    hex.type = "resource";
-    resourceCount++;
+    return dist >= 3 && dist <= 8;
+  });
+
+  // Assign each candidate to nearest spawn
+  var spawnBuckets = SPAWN_POSITIONS.map(function() { return []; });
+  for (var ci = 0; ci < resourceCandidates.length; ci++) {
+    var hex = hexes.get(resourceCandidates[ci]);
+    var nearestSpawn = 0;
+    var nearestDist = Infinity;
+    for (var si = 0; si < SPAWN_POSITIONS.length; si++) {
+      var d = hexDistance(hex.q, hex.r, SPAWN_POSITIONS[si].q, SPAWN_POSITIONS[si].r);
+      if (d < nearestDist) { nearestDist = d; nearestSpawn = si; }
+    }
+    spawnBuckets[nearestSpawn].push(resourceCandidates[ci]);
+  }
+
+  // Shuffle each bucket and pick 2 per spawn (8 total), ensuring min spacing of 3
+  var placedResources = [];
+  for (var si = 0; si < spawnBuckets.length; si++) {
+    var bucket = spawnBuckets[si].slice().sort(function() { return Math.random() - 0.5; });
+    var placed = 0;
+    for (var bi = 0; bi < bucket.length && placed < 2; bi++) {
+      var hex = hexes.get(bucket[bi]);
+      // Check minimum distance from already-placed resources
+      var tooClose = false;
+      for (var pi = 0; pi < placedResources.length; pi++) {
+        var ph = hexes.get(placedResources[pi]);
+        if (hexDistance(hex.q, hex.r, ph.q, ph.r) < 3) { tooClose = true; break; }
+      }
+      if (tooClose) continue;
+      hex.type = "resource";
+      placedResources.push(bucket[bi]);
+      placed++;
+    }
   }
 
   return hexes;
