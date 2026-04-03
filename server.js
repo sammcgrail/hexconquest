@@ -312,10 +312,14 @@ function deleteBot(name) {
 
 // ============ BOT EXECUTION ============
 
-function buildBotState(playerIndex) {
-  var player = game.players[playerIndex];
+// Cached per-tick stats to avoid re-iterating hexes for each bot/broadcast
+var cachedTickStats = null;
+
+function computeTickStats() {
+  if (cachedTickStats && cachedTickStats.tick === game.tick) return cachedTickStats;
   var hexArray = [];
-  var legalMoves = [];
+  var territory = [0, 0, 0, 0], totalUnits = [0, 0, 0, 0];
+  var legalMovesByPlayer = [[], [], [], []];
 
   for (var [key, hex] of game.hexes) {
     hexArray.push({
@@ -323,36 +327,51 @@ function buildBotState(playerIndex) {
       owner: hex.owner, units: hex.units, hasKing: hex.hasKing
     });
 
-    // Build legal moves for this player's hexes
-    if (hex.owner === playerIndex && hex.units > 0) {
+    if (hex.owner !== null && hex.owner >= 0 && hex.owner < 4) {
+      territory[hex.owner]++;
+      totalUnits[hex.owner] += hex.units;
+    }
+
+    // Build legal moves for all players' hexes in one pass
+    if (hex.owner !== null && hex.units > 0) {
       var adjacent = getAdjacent(hex.q, hex.r).filter(function(a) {
         var target = game.hexes.get(hexKey(a.q, a.r));
         return target && target.type !== "mountain";
       });
       if (adjacent.length > 0) {
-        legalMoves.push({ from: { q: hex.q, r: hex.r }, adjacent: adjacent });
+        legalMovesByPlayer[hex.owner].push({ from: { q: hex.q, r: hex.r }, adjacent: adjacent });
       }
     }
   }
 
+  cachedTickStats = {
+    tick: game.tick,
+    hexArray: hexArray,
+    territory: territory,
+    totalUnits: totalUnits,
+    legalMovesByPlayer: legalMovesByPlayer
+  };
+  return cachedTickStats;
+}
+
+function buildBotState(playerIndex) {
+  var player = game.players[playerIndex];
+  var stats = computeTickStats();
+
   var playerInfo = game.players.map(function(p, idx) {
-    var territory = 0, totalUnits = 0;
-    for (var [k, h] of game.hexes) {
-      if (h.owner === idx) { territory++; totalUnits += h.units; }
-    }
     return {
       id: p.id, name: p.name, color: p.color, alive: p.alive,
-      territory: territory, totalUnits: totalUnits, gold: p.gold
+      territory: stats.territory[idx], totalUnits: stats.totalUnits[idx], gold: p.gold
     };
   });
 
   return {
     myIndex: playerIndex,
     tick: game.tick,
-    hexes: hexArray,
+    hexes: stats.hexArray,
     players: playerInfo,
     myKing: player.kingPos,
-    legalMoves: legalMoves,
+    legalMoves: stats.legalMovesByPlayer[playerIndex],
     memory: botMemories[playerIndex] || {}
   };
 }
@@ -364,12 +383,14 @@ function runBot(playerIndex) {
   var state = buildBotState(playerIndex);
   var code = player.code;
 
+  // Serialize state once, reuse for retries
+  var stateJSON = JSON.stringify(state);
+
   for (var attempt = 0; attempt < 3; attempt++) {
     try {
       var wrappedCode = `
         "use strict";
-        var stateJSON = ${JSON.stringify(JSON.stringify(state))};
-        var state = JSON.parse(stateJSON);
+        var state = JSON.parse(arguments[0]);
         var actions = (function() {
           ${code}
           return decideActions(state);
@@ -378,7 +399,7 @@ function runBot(playerIndex) {
       `;
 
       var fn = new Function(wrappedCode);
-      var resultStr = fn();
+      var resultStr = fn(stateJSON);
       var result = JSON.parse(resultStr);
 
       // Persist memory
@@ -401,6 +422,8 @@ function processTick() {
 
   game.tick++;
   game.combatLog = [];
+  cachedTickStats = null; // Invalidate cache for fresh state
+  var tickStart = Date.now();
 
   // 1. Run all bots and collect orders
   var allOrders = [];
@@ -500,14 +523,14 @@ function processTick() {
     }
   }
 
-  // 5. Gold from territory
+  // 5. Gold from territory (single-pass count)
+  var terrCount = [0, 0, 0, 0];
+  for (var [k, h] of game.hexes) {
+    if (h.owner !== null && h.owner >= 0 && h.owner < 4) terrCount[h.owner]++;
+  }
   for (var i = 0; i < game.players.length; i++) {
     if (!game.players[i].alive) continue;
-    var territory = 0;
-    for (var [k, h] of game.hexes) {
-      if (h.owner === i) territory++;
-    }
-    game.players[i].gold += Math.floor(territory / 10);
+    game.players[i].gold += Math.floor(terrCount[i] / 10);
   }
 
   // 6. Check win conditions
@@ -518,6 +541,10 @@ function processTick() {
   }
 
   // Broadcast state
+  var tickMs = Date.now() - tickStart;
+  if (tickMs > 200 || game.tick % 50 === 0) {
+    console.log("Tick " + game.tick + " took " + tickMs + "ms");
+  }
   broadcastState();
 }
 
@@ -704,22 +731,32 @@ function startGame() {
 function serializeState() {
   if (!game) return JSON.stringify({ type: "state", game: null });
 
-  var hexArray = [];
-  for (var [key, hex] of game.hexes) {
-    hexArray.push({
-      q: hex.q, r: hex.r, type: hex.type,
-      owner: hex.owner, units: hex.units, hasKing: hex.hasKing
-    });
+  // Reuse cached hex/territory data when available, else build fresh
+  var hexArray, territory, totalUnits;
+  if (cachedTickStats && cachedTickStats.tick === game.tick) {
+    hexArray = cachedTickStats.hexArray;
+    territory = cachedTickStats.territory;
+    totalUnits = cachedTickStats.totalUnits;
+  } else {
+    hexArray = [];
+    territory = [0, 0, 0, 0];
+    totalUnits = [0, 0, 0, 0];
+    for (var [key, hex] of game.hexes) {
+      hexArray.push({
+        q: hex.q, r: hex.r, type: hex.type,
+        owner: hex.owner, units: hex.units, hasKing: hex.hasKing
+      });
+      if (hex.owner !== null && hex.owner >= 0 && hex.owner < 4) {
+        territory[hex.owner]++;
+        totalUnits[hex.owner] += hex.units;
+      }
+    }
   }
 
   var playerInfo = game.players.map(function(p, idx) {
-    var territory = 0, totalUnits = 0;
-    for (var [k, h] of game.hexes) {
-      if (h.owner === idx) { territory++; totalUnits += h.units; }
-    }
     return {
       name: p.name, color: p.color, alive: p.alive,
-      territory: territory, totalUnits: totalUnits, gold: p.gold,
+      territory: territory[idx] || 0, totalUnits: totalUnits[idx] || 0, gold: p.gold,
       kingPos: p.kingPos, version: p.version || null
     };
   });
