@@ -170,7 +170,8 @@ function createGame() {
       alive: true,
       gold: 0,
       kingPos: { q: spawn.q, r: spawn.r },
-      code: activeBots[i].code
+      code: activeBots[i].code,
+      version: activeBots[i].version || null
     });
   }
 
@@ -207,7 +208,7 @@ function loadBots() {
   return bots;
 }
 
-function saveBot(name, password, code) {
+function saveBot(name, password, code, version) {
   var filePath = path.join(BOTS_DIR, name + ".json");
   // Check if exists and password matches
   if (fs.existsSync(filePath)) {
@@ -217,6 +218,7 @@ function saveBot(name, password, code) {
     }
   }
   var bot = { name: name, password: password, code: code, updated: new Date().toISOString() };
+  if (version) bot.version = version;
   fs.writeFileSync(filePath, JSON.stringify(bot, null, 2));
   return { ok: true };
 }
@@ -631,7 +633,7 @@ function serializeState() {
     return {
       name: p.name, color: p.color, alive: p.alive,
       territory: territory, totalUnits: totalUnits, gold: p.gold,
-      kingPos: p.kingPos
+      kingPos: p.kingPos, version: p.version || null
     };
   });
 
@@ -693,14 +695,15 @@ app.post("/api/bot/upload", function(req, res) {
     return res.status(400).json({ error: "name must be 32 chars or less" });
   }
 
-  var result = saveBot(name, password, code);
+  var version = req.body.version || null;
+  var result = saveBot(name, password, code, version);
   if (result.error) return res.status(403).json(result);
   res.json({ ok: true, message: "Bot '" + name + "' uploaded successfully" });
 });
 
 app.get("/api/bots", function(req, res) {
   var bots = loadBots().map(function(b) {
-    return { name: b.name, updated: b.updated };
+    return { name: b.name, updated: b.updated, version: b.version || null };
   });
   res.json(bots);
 });
@@ -738,6 +741,46 @@ app.get("/api/history", function(req, res) {
   res.json(games);
 });
 
+// Detailed stats for a specific bot — useful for iteration
+app.get("/api/stats/:name", function(req, res) {
+  var name = req.params.name;
+  var limit = parseInt(req.query.limit) || 50;
+  var games = db.prepare("SELECT * FROM games ORDER BY date DESC LIMIT ?").all(limit);
+  var botGames = [];
+  var wins = 0, losses = 0;
+  var winsByReason = {};
+  var avgWinTick = 0, winCount = 0;
+  var killedBy = {};
+
+  for (var g of games) {
+    var players = JSON.parse(g.players);
+    if (players.indexOf(name) === -1) continue;
+    var won = g.winner === name;
+    botGames.push({ date: g.date, winner: g.winner, reason: g.reason, ticks: g.ticks, won: won });
+    if (won) {
+      wins++;
+      winsByReason[g.reason] = (winsByReason[g.reason] || 0) + 1;
+      avgWinTick += g.ticks;
+      winCount++;
+    } else {
+      losses++;
+      killedBy[g.winner] = (killedBy[g.winner] || 0) + 1;
+    }
+  }
+
+  res.json({
+    name: name,
+    games: botGames.length,
+    wins: wins,
+    losses: losses,
+    winRate: botGames.length > 0 ? Math.round(wins / botGames.length * 100) : 0,
+    avgWinTick: winCount > 0 ? Math.round(avgWinTick / winCount) : null,
+    winsByReason: winsByReason,
+    lostTo: killedBy,
+    recentGames: botGames.slice(0, 10)
+  });
+});
+
 app.get("/api/game/state", function(req, res) {
   if (!game) return res.json({ game: null });
 
@@ -757,7 +800,7 @@ app.get("/api/game/state", function(req, res) {
     return {
       name: p.name, color: p.color, alive: p.alive,
       territory: territory, totalUnits: totalUnits, gold: p.gold,
-      kingPos: p.kingPos
+      kingPos: p.kingPos, version: p.version || null
     };
   });
 

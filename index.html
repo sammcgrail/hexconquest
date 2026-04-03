@@ -545,6 +545,7 @@
       html += '<div class="player-name" style="color:' + color + '">';
       if (!p.alive) html += '<span class="skull">\u2620</span>';
       html += escHtml(p.name);
+      if (p.version) html += '<span style="color:#71717a;font-size:10px;margin-left:4px">v' + escHtml(p.version) + '</span>';
       html += '<span class="rank" style="margin-left:auto">' + pct + '%</span>';
       html += '</div>';
       html += '<div class="player-stats">';
