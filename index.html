@@ -589,14 +589,17 @@
 
     var winner = null;
     var winnerName = "Unknown";
-    if (gameState.players) {
+    // Use winnerName from game_over event (most reliable)
+    if (gameState.winnerName && gameState.players) {
+      for (var p of gameState.players) {
+        if (p.name === gameState.winnerName) { winner = p; winnerName = p.name; break; }
+      }
+    }
+    // Fallback: check alive players
+    if (!winner && gameState.players) {
       for (var p of gameState.players) {
         if (p.alive) { winner = p; winnerName = p.name; break; }
       }
-    }
-    if (gameState.winner !== undefined && gameState.players && gameState.players[gameState.winner]) {
-      winner = gameState.players[gameState.winner];
-      winnerName = winner.name;
     }
 
     var winnerColor = winner ? (winner.color || "#fbbf24") : "#fbbf24";
@@ -683,6 +686,11 @@
           statusMsg.style.display = "block";
           statusMsg.textContent = "Waiting for bots...";
         } else if (msg.type === "game_over") {
+          // Store winner info on gameState so showGameOver() can use it
+          if (gameState) {
+            gameState.winnerName = msg.winner;
+            gameState.winReason = msg.reason;
+          }
           loadLeaderboard();
           loadHistory();
         }
