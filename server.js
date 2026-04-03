@@ -12,6 +12,7 @@ var wss = new WebSocket.Server({ noServer: true });
 
 var PORT = 8080;
 var HEX_RADIUS = 10;
+var MAX_PLAYERS = 4;
 var MAX_TICKS = 200;
 var TICK_MS = 500;
 var BOT_TIMEOUT_MS = 2000;
