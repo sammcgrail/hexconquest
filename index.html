@@ -185,7 +185,7 @@
 
   /* Fixed panel heights — prevent layout bounce */
   #players-list { /* no height constraint — only 4 players */ }
-  #leaderboard { max-height: 120px; overflow-y: auto; }
+  #leaderboard, #leaderboard-recent { max-height: none; }
 
   /* Mobile */
   @media (max-width: 768px) {
@@ -207,7 +207,7 @@
     .header-info { gap: 6px; }
     #combat-log { height: 150px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
     #players-list { max-height: none; overflow-y: visible; }
-    #leaderboard { max-height: 100px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+    #leaderboard, #leaderboard-recent { max-height: none; }
     .panel { touch-action: pan-y; }
   }
 </style>
