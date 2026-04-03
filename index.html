@@ -189,17 +189,23 @@
 
   /* Mobile */
   @media (max-width: 768px) {
-    main { flex-direction: column; }
+    body { overflow-y: auto; overflow-x: hidden; }
+    main { flex-direction: column; overflow: visible; }
     #sidebar {
       width: 100%; border-left: none; border-top: 1px solid #27272a;
-      max-height: 40vh; flex-shrink: 0;
+      max-height: none; flex-shrink: 0;
+      overflow-y: visible;
+      -webkit-overflow-scrolling: touch;
+      touch-action: auto;
     }
-    #canvas-wrap { min-height: 50vh; }
+    #canvas-wrap { min-height: 50vh; touch-action: none; }
+    canvas { touch-action: none; }
     header h1 { font-size: 16px; }
     .tick-bar-wrap { width: 80px; }
-    #combat-log { height: 150px; }
-    #players-list { max-height: 280px; }
-    #leaderboard { max-height: 100px; }
+    #combat-log { height: 150px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+    #players-list { max-height: 280px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+    #leaderboard { max-height: 100px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+    .panel { touch-action: pan-y; }
   }
 </style>
 </head>
