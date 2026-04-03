@@ -111,8 +111,7 @@ function generateMap() {
     mountainCount++;
   }
 
-  // Place resource hexes (~8, balanced across players)
-  // Strategy: 2 resources per quadrant (nearest to each spawn) + ensure min spacing
+  // Place resource hexes (~8, balanced across players with fairness check)
   var resourceCandidates = allKeys.filter(function(key) {
     var hex = hexes.get(key);
     if (hex.type !== "plain") return false;
@@ -134,23 +133,58 @@ function generateMap() {
     spawnBuckets[nearestSpawn].push(resourceCandidates[ci]);
   }
 
-  // Shuffle each bucket and pick 2 per spawn (8 total), ensuring min spacing of 3
-  var placedResources = [];
-  for (var si = 0; si < spawnBuckets.length; si++) {
-    var bucket = spawnBuckets[si].slice().sort(function() { return Math.random() - 0.5; });
-    var placed = 0;
-    for (var bi = 0; bi < bucket.length && placed < 2; bi++) {
-      var hex = hexes.get(bucket[bi]);
-      // Check minimum distance from already-placed resources
-      var tooClose = false;
-      for (var pi = 0; pi < placedResources.length; pi++) {
-        var ph = hexes.get(placedResources[pi]);
-        if (hexDistance(hex.q, hex.r, ph.q, ph.r) < 3) { tooClose = true; break; }
+  // Try up to 10 times, keep best fairness score
+  function tryPlaceResources() {
+    var placed = [];
+    for (var si = 0; si < spawnBuckets.length; si++) {
+      var bucket = spawnBuckets[si].slice().sort(function() { return Math.random() - 0.5; });
+      var count = 0;
+      for (var bi = 0; bi < bucket.length && count < 2; bi++) {
+        var h = hexes.get(bucket[bi]);
+        var tooClose = false;
+        for (var pi = 0; pi < placed.length; pi++) {
+          var ph = hexes.get(placed[pi]);
+          if (hexDistance(h.q, h.r, ph.q, ph.r) < 3) { tooClose = true; break; }
+        }
+        if (tooClose) continue;
+        placed.push(bucket[bi]);
+        count++;
       }
-      if (tooClose) continue;
-      hex.type = "resource";
-      placedResources.push(bucket[bi]);
-      placed++;
+    }
+    return placed;
+  }
+
+  function measureFairness(placed) {
+    if (placed.length === 0) return 0;
+    var avgDists = [];
+    for (var si = 0; si < SPAWN_POSITIONS.length; si++) {
+      var total = 0;
+      for (var pi = 0; pi < placed.length; pi++) {
+        var h = hexes.get(placed[pi]);
+        total += hexDistance(SPAWN_POSITIONS[si].q, SPAWN_POSITIONS[si].r, h.q, h.r);
+      }
+      avgDists.push(total / placed.length);
+    }
+    var minD = Math.min.apply(null, avgDists);
+    var maxD = Math.max.apply(null, avgDists);
+    return maxD > 0 ? minD / maxD : 1; // 1.0 = perfectly fair
+  }
+
+  var bestPlacement = null;
+  var bestFairness = 0;
+  for (var attempt = 0; attempt < 10; attempt++) {
+    var placement = tryPlaceResources();
+    var fairness = measureFairness(placement);
+    if (fairness > bestFairness) {
+      bestFairness = fairness;
+      bestPlacement = placement;
+    }
+    if (fairness >= 0.85) break; // Good enough
+  }
+
+  if (bestPlacement) {
+    for (var pi = 0; pi < bestPlacement.length; pi++) {
+      hexes.get(bestPlacement[pi]).type = "resource";
     }
   }
 
