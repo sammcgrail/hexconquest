@@ -7,51 +7,206 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #09090b; color: #e4e4e7; font-family: 'Courier New', monospace;
+    background: #09090b; color: #e4e4e7;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     display: flex; flex-direction: column; height: 100vh; overflow: hidden;
   }
   header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 20px; border-bottom: 1px solid #27272a;
+    background: linear-gradient(180deg, #18181b 0%, #09090b 100%);
   }
-  header h1 { font-size: 20px; color: #fafafa; }
-  #tick-display { font-size: 14px; color: #a1a1aa; }
-  #phase-display { font-size: 14px; padding: 3px 10px; border-radius: 4px; }
-  .phase-waiting { background: #854d0e; color: #fef08a; }
-  .phase-playing { background: #166534; color: #86efac; }
-  .phase-finished { background: #7f1d1d; color: #fca5a5; }
+  header h1 {
+    font-size: 20px; color: #fafafa; font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .header-info { display: flex; gap: 12px; align-items: center; }
+  #game-info { font-size: 12px; color: #52525b; }
+  #tick-display { font-size: 13px; color: #a1a1aa; font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
+  .tick-bar-wrap {
+    width: 120px; height: 4px; background: #27272a; border-radius: 2px; overflow: hidden;
+  }
+  .tick-bar-fill {
+    height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    border-radius: 2px; transition: width 0.3s ease;
+  }
+  #phase-display {
+    font-size: 11px; padding: 3px 10px; border-radius: 99px;
+    font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .phase-waiting { background: rgba(133,77,14,0.3); color: #fef08a; border: 1px solid rgba(234,179,8,0.3); }
+  .phase-playing { background: rgba(22,101,52,0.3); color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
+  .phase-finished { background: rgba(127,29,29,0.3); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+
   main { display: flex; flex: 1; overflow: hidden; }
-  #canvas-wrap { flex: 1; position: relative; }
+  #canvas-wrap { flex: 1; position: relative; background: radial-gradient(ellipse at center, #0f0f15 0%, #09090b 70%); }
   canvas { width: 100%; height: 100%; display: block; }
+
   #sidebar {
-    width: 280px; border-left: 1px solid #27272a; padding: 12px;
+    width: 300px; border-left: 1px solid #27272a; padding: 12px;
     overflow-y: auto; flex-shrink: 0;
+    background: linear-gradient(180deg, #0f0f12 0%, #09090b 100%);
+    scrollbar-width: thin; scrollbar-color: #27272a transparent;
   }
+  #sidebar::-webkit-scrollbar { width: 6px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+
   .panel { margin-bottom: 16px; }
-  .panel h2 { font-size: 13px; color: #71717a; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; }
-  .player-card {
-    padding: 8px; border-radius: 6px; margin-bottom: 6px;
-    background: #18181b; border: 1px solid #27272a;
+  .panel h2 {
+    font-size: 11px; color: #52525b; text-transform: uppercase;
+    margin-bottom: 8px; letter-spacing: 1.5px; font-weight: 600;
   }
-  .player-card.dead { opacity: 0.4; }
-  .player-name { font-weight: bold; font-size: 14px; }
-  .player-stats { font-size: 12px; color: #a1a1aa; margin-top: 4px; }
-  .player-stats span { margin-right: 10px; }
-  .combat-entry { font-size: 11px; color: #a1a1aa; margin-bottom: 4px; padding: 4px; background: #18181b; border-radius: 4px; }
-  .leaderboard-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #1e1e1e; }
-  .leaderboard-row .name { color: #e4e4e7; }
-  .leaderboard-row .score { color: #a1a1aa; }
+
+  /* Player cards */
+  .player-card {
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 6px;
+    background: #18181b; border: 1px solid #27272a;
+    transition: opacity 0.4s ease, transform 0.3s ease;
+    position: relative; overflow: hidden;
+  }
+  .player-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    border-radius: 3px 0 0 3px;
+  }
+  .player-card.dead {
+    opacity: 0.35; filter: grayscale(0.8);
+  }
+  .player-name {
+    font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;
+  }
+  .player-name .skull { font-size: 14px; filter: grayscale(1); }
+  .player-name .rank { font-size: 10px; color: #52525b; font-weight: 400; }
+  .player-stats {
+    font-size: 12px; color: #a1a1aa; margin-top: 6px;
+    display: flex; gap: 12px; align-items: center;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .player-stats .stat { display: flex; align-items: center; gap: 3px; }
+  .player-stats .stat-icon { font-size: 11px; }
+  .territory-bar-wrap {
+    margin-top: 6px; height: 3px; background: #27272a; border-radius: 2px; overflow: hidden;
+  }
+  .territory-bar-fill {
+    height: 100%; border-radius: 2px; transition: width 0.5s ease;
+  }
+
+  /* Combat log */
+  #combat-log {
+    max-height: 200px; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: #27272a transparent;
+  }
+  #combat-log::-webkit-scrollbar { width: 4px; }
+  #combat-log::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+  .combat-entry {
+    font-size: 11px; color: #a1a1aa; margin-bottom: 3px; padding: 5px 8px;
+    background: #18181b; border-radius: 6px; border: 1px solid #1e1e22;
+    animation: fadeSlideIn 0.3s ease;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .combat-entry.king-capture {
+    background: linear-gradient(135deg, rgba(234,179,8,0.15) 0%, #18181b 100%);
+    border-color: rgba(234,179,8,0.3);
+  }
+  .combat-entry .attacker { font-weight: 600; }
+  .combat-entry .defender { font-weight: 600; }
+  .combat-entry .result-text { color: #71717a; }
+  .combat-entry .king-badge {
+    display: inline-block; padding: 0 4px; background: rgba(234,179,8,0.2);
+    border-radius: 3px; color: #fbbf24; font-size: 10px;
+  }
+
+  /* Leaderboard */
+  .leaderboard-row {
+    display: flex; justify-content: space-between; font-size: 12px;
+    padding: 6px 0; border-bottom: 1px solid #1a1a1e;
+  }
+  .leaderboard-row .name { color: #e4e4e7; font-weight: 500; }
+  .leaderboard-row .score { color: #71717a; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+
+  /* History */
+  .history-entry {
+    font-size: 11px; padding: 6px 8px; margin-bottom: 3px;
+    background: #18181b; border: 1px solid #27272a; border-radius: 6px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .history-entry .winner-name { font-weight: 600; color: #fbbf24; }
+  .history-entry .history-meta { color: #52525b; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px; }
+
+  /* Game over overlay */
+  #game-over-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+    z-index: 100; justify-content: center; align-items: center;
+  }
+  #game-over-overlay.visible { display: flex; }
+  #game-over-card {
+    background: linear-gradient(135deg, #18181b 0%, #1f1f25 100%);
+    border: 1px solid #27272a; border-radius: 16px;
+    padding: 32px 48px; text-align: center; max-width: 420px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    animation: overlayIn 0.4s ease;
+  }
+  #game-over-card h2 {
+    font-size: 14px; color: #52525b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;
+  }
+  #game-over-card .winner-name {
+    font-size: 28px; font-weight: 800; margin-bottom: 4px;
+  }
+  #game-over-card .win-reason {
+    font-size: 13px; color: #71717a; margin-bottom: 20px;
+  }
+  #game-over-card .final-scores {
+    text-align: left; font-size: 12px;
+  }
+  #game-over-card .final-scores .score-row {
+    display: flex; justify-content: space-between; padding: 4px 0;
+    border-bottom: 1px solid #1e1e22;
+  }
+
   #status-msg {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    font-size: 18px; color: #71717a; text-align: center; pointer-events: none;
+    font-size: 16px; color: #52525b; text-align: center; pointer-events: none;
+    font-weight: 500;
+  }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes overlayIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes pulseGlow {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    main { flex-direction: column; }
+    #sidebar {
+      width: 100%; border-left: none; border-top: 1px solid #27272a;
+      max-height: 40vh; flex-shrink: 0;
+    }
+    #canvas-wrap { min-height: 50vh; }
+    header h1 { font-size: 16px; }
+    .tick-bar-wrap { width: 80px; }
   }
 </style>
 </head>
 <body>
 <header>
-  <h1>Hex Conquest</h1>
-  <div style="display:flex;gap:16px;align-items:center;">
-    <span id="tick-display">Tick 0 / 200</span>
+  <div>
+    <h1>Hex Conquest</h1>
+    <div id="game-info"></div>
+  </div>
+  <div class="header-info">
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+      <span id="tick-display">Tick 0 / 200</span>
+      <div class="tick-bar-wrap"><div class="tick-bar-fill" id="tick-bar" style="width:0%"></div></div>
+    </div>
     <span id="phase-display" class="phase-waiting">WAITING</span>
   </div>
 </header>
@@ -73,15 +228,31 @@
       <h2>Leaderboard</h2>
       <div id="leaderboard"></div>
     </div>
+    <div class="panel">
+      <h2>Past Games</h2>
+      <div id="history"></div>
+    </div>
   </div>
 </main>
+<div id="game-over-overlay">
+  <div id="game-over-card">
+    <h2>Game Over</h2>
+    <div class="winner-name" id="go-winner"></div>
+    <div class="win-reason" id="go-reason"></div>
+    <div class="final-scores" id="go-scores"></div>
+  </div>
+</div>
 <script>
 (function() {
   var canvas = document.getElementById("hex-canvas");
   var ctx = canvas.getContext("2d");
   var statusMsg = document.getElementById("status-msg");
   var gameState = null;
+  var prevGameState = null;
   var HEX_RADIUS = 10;
+  var combatFlashes = {}; // key "q,r" -> {time, color}
+  var gameOverShown = false;
+  var animFrame = 0;
 
   // Hex drawing params
   var hexSize = 22;
@@ -96,15 +267,13 @@
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     centerX = wrap.clientWidth / 2;
     centerY = wrap.clientHeight / 2;
-    // Adjust hex size to fit
     var minDim = Math.min(wrap.clientWidth, wrap.clientHeight);
     hexSize = Math.floor(minDim / (HEX_RADIUS * 2 + 3) / 1.8);
-    if (hexSize < 10) hexSize = 10;
+    if (hexSize < 8) hexSize = 8;
     if (hexSize > 30) hexSize = 30;
     render();
   }
 
-  // Flat-top hex: x = size * (3/2 * q), y = size * (sqrt(3)/2 * q + sqrt(3) * r)
   var sqrt3 = Math.sqrt(3);
   function hexToPixel(q, r) {
     var x = hexSize * (1.5 * q);
@@ -112,7 +281,7 @@
     return { x: centerX + x, y: centerY + y };
   }
 
-  function drawHex(cx, cy, size, fill, stroke) {
+  function drawHex(cx, cy, size, fill, stroke, lineWidth) {
     ctx.beginPath();
     for (var i = 0; i < 6; i++) {
       var angle = Math.PI / 180 * (60 * i);
@@ -122,7 +291,7 @@
     }
     ctx.closePath();
     if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth || 1; ctx.stroke(); }
   }
 
   var TYPE_COLORS = {
@@ -137,42 +306,115 @@
     "rgba(34,197,94,0.25)",
     "rgba(234,179,8,0.25)"
   ];
+  var OWNER_GLOW = [
+    "rgba(239,68,68,0.12)",
+    "rgba(59,130,246,0.12)",
+    "rgba(34,197,94,0.12)",
+    "rgba(234,179,8,0.12)"
+  ];
 
+  // Hex neighbor offsets (axial)
+  var HEX_DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
+
+  function buildHexMap(hexes) {
+    var m = {};
+    for (var h of hexes) m[h.q + "," + h.r] = h;
+    return m;
+  }
+
+  function isContested(hex, hexMap) {
+    if (hex.owner === null || hex.owner === undefined) return false;
+    for (var d of HEX_DIRS) {
+      var key = (hex.q + d[0]) + "," + (hex.r + d[1]);
+      var nb = hexMap[key];
+      if (nb && nb.owner !== null && nb.owner !== undefined && nb.owner !== hex.owner) return true;
+    }
+    return false;
+  }
+
+  var now = performance.now();
   function render() {
+    now = performance.now();
     ctx.clearRect(0, 0, canvas.width / devicePixelRatio, canvas.height / devicePixelRatio);
     if (!gameState || !gameState.hexes) return;
+
+    var hexMap = buildHexMap(gameState.hexes);
 
     for (var hex of gameState.hexes) {
       var p = hexToPixel(hex.q, hex.r);
       var fill = TYPE_COLORS[hex.type] || TYPE_COLORS.plain;
       var stroke = "#27272a";
+      var lw = 1;
+      var hasOwner = hex.owner !== null && hex.owner !== undefined;
 
-      if (hex.owner !== null && hex.owner !== undefined) {
+      // Terrain-specific fills
+      if (hex.type === "mountain") {
+        fill = "#2a2a30";
+        stroke = "#404048";
+      } else if (hex.type === "resource" && !hasOwner) {
+        fill = "#142e14";
+        stroke = "#2d6b2d";
+      }
+
+      // Owner fills with glow
+      if (hasOwner) {
         fill = OWNER_BG[hex.owner] || fill;
         stroke = OWNER_COLORS[hex.owner] || stroke;
-      }
-      if (hex.type === "mountain") {
-        fill = "#3a3a3a";
-        stroke = "#555";
-      }
-      if (hex.type === "resource" && hex.owner === null) {
-        fill = "#1a2e1a";
-        stroke = "#4ade80";
+
+        // Glow behind owned hexes
+        ctx.save();
+        ctx.shadowColor = OWNER_COLORS[hex.owner] || "transparent";
+        ctx.shadowBlur = 8;
+        drawHex(p.x, p.y, hexSize - 1, fill, null);
+        ctx.restore();
       }
 
-      drawHex(p.x, p.y, hexSize - 1, fill, stroke);
+      // Contested pulsing border
+      var contested = hasOwner && isContested(hex, hexMap);
+      if (contested) {
+        var pulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(now / 400 + hex.q * 0.5 + hex.r * 0.3));
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        drawHex(p.x, p.y, hexSize + 1, null, OWNER_COLORS[hex.owner] || "#fff", 2);
+        ctx.restore();
+        lw = 1.5;
+      }
 
-      // Resource marker
+      // Combat flash
+      var flashKey = hex.q + "," + hex.r;
+      if (combatFlashes[flashKey]) {
+        var elapsed = now - combatFlashes[flashKey].time;
+        if (elapsed < 600) {
+          ctx.save();
+          ctx.globalAlpha = 1 - elapsed / 600;
+          drawHex(p.x, p.y, hexSize - 1, combatFlashes[flashKey].color, null);
+          ctx.restore();
+        } else {
+          delete combatFlashes[flashKey];
+        }
+      }
+
+      drawHex(p.x, p.y, hexSize - 1, hasOwner ? null : fill, stroke, lw);
+      if (!hasOwner) {
+        // redraw fill only if not owner-filled above
+      }
+
+      // Resource glow
       if (hex.type === "resource") {
+        ctx.save();
+        ctx.shadowColor = "#4ade80";
+        ctx.shadowBlur = 4;
         ctx.fillStyle = "#4ade80";
-        ctx.font = (hexSize * 0.4) + "px sans-serif";
+        ctx.font = (hexSize * 0.38) + "px sans-serif";
         ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
         ctx.fillText("$", p.x, p.y - hexSize * 0.25);
+        ctx.restore();
       }
 
       // Mountain marker
       if (hex.type === "mountain") {
-        ctx.fillStyle = "#888";
+        ctx.fillStyle = "#5a5a66";
         ctx.font = (hexSize * 0.5) + "px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -181,12 +423,55 @@
 
       // Units
       if (hex.units > 0 && hex.type !== "mountain") {
-        ctx.fillStyle = hex.owner !== null ? (OWNER_COLORS[hex.owner] || "#fff") : "#fff";
-        ctx.font = "bold " + (hexSize * 0.45) + "px monospace";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        var label = hex.hasKing ? "\u265A" + hex.units : "" + hex.units;
-        ctx.fillText(label, p.x, p.y + (hex.type === "resource" ? hexSize * 0.15 : 0));
+        var unitColor = hasOwner ? (OWNER_COLORS[hex.owner] || "#fff") : "#fff";
+
+        // King: gold border, crown
+        if (hex.hasKing) {
+          ctx.save();
+          ctx.shadowColor = "#fbbf24";
+          ctx.shadowBlur = 6;
+          drawHex(p.x, p.y, hexSize - 1, null, "#fbbf24", 2);
+          ctx.restore();
+
+          // Crown emoji
+          ctx.font = (hexSize * 0.35) + "px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("\uD83D\uDC51", p.x, p.y - hexSize * 0.3);
+
+          // Unit count below crown
+          ctx.fillStyle = "#fbbf24";
+          ctx.font = "bold " + (hexSize * 0.4) + "px " + "'SF Mono','Fira Code',monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("" + hex.units, p.x, p.y + hexSize * 0.18);
+        } else {
+          ctx.fillStyle = unitColor;
+          ctx.font = "bold " + (hexSize * 0.42) + "px " + "'SF Mono','Fira Code',monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          var yOff = hex.type === "resource" ? hexSize * 0.15 : 0;
+          ctx.fillText("" + hex.units, p.x, p.y + yOff);
+        }
+      }
+    }
+
+    // Keep animating if there are active flashes or contested hexes
+    if (Object.keys(combatFlashes).length > 0 || (gameState.phase === "playing")) {
+      requestAnimationFrame(render);
+    }
+  }
+
+  // Trigger combat flashes from log
+  function processCombatFlashes(combatLog) {
+    if (!combatLog) return;
+    for (var e of combatLog) {
+      if (e.type === "combat" && e.q !== undefined && e.r !== undefined) {
+        var key = e.q + "," + e.r;
+        combatFlashes[key] = {
+          time: performance.now(),
+          color: e.kingCaptured ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.4)"
+        };
       }
     }
   }
@@ -195,8 +480,18 @@
     if (!gameState) return;
 
     // Tick
-    document.getElementById("tick-display").textContent =
-      "Tick " + (gameState.tick || 0) + " / " + (gameState.maxTicks || 200);
+    var tick = gameState.tick || 0;
+    var maxTicks = gameState.maxTicks || 200;
+    document.getElementById("tick-display").textContent = "Tick " + tick + " / " + maxTicks;
+    document.getElementById("tick-bar").style.width = (tick / maxTicks * 100) + "%";
+
+    // Game info
+    var infoEl = document.getElementById("game-info");
+    if (gameState.gameId) {
+      infoEl.textContent = "Game #" + gameState.gameId;
+    } else if (gameState.gameNumber) {
+      infoEl.textContent = "Game #" + gameState.gameNumber;
+    }
 
     // Phase
     var phaseEl = document.getElementById("phase-display");
@@ -204,46 +499,118 @@
     phaseEl.textContent = phase.toUpperCase();
     phaseEl.className = "phase-" + phase;
 
-    // Players
-    var html = "";
+    // Game over overlay
+    if (phase === "finished" && !gameOverShown) {
+      showGameOver();
+      gameOverShown = true;
+    } else if (phase === "playing" && gameOverShown) {
+      hideGameOver();
+      gameOverShown = false;
+    }
+
+    // Players - sorted by territory
+    var totalHexes = 0;
+    var players = [];
     if (gameState.players) {
       for (var i = 0; i < gameState.players.length; i++) {
-        var p = gameState.players[i];
-        html += '<div class="player-card' + (p.alive ? '' : ' dead') + '">';
-        html += '<div class="player-name" style="color:' + p.color + '">' +
-          (p.alive ? '' : '\u2620 ') + escHtml(p.name) + '</div>';
-        html += '<div class="player-stats">';
-        html += '<span>\u2B22 ' + (p.territory || 0) + '</span>';
-        html += '<span>\u2694 ' + (p.totalUnits || 0) + '</span>';
-        html += '<span>\uD83D\uDCB0 ' + (p.gold || 0) + '</span>';
-        html += '</div></div>';
+        var pl = Object.assign({}, gameState.players[i], { idx: i });
+        players.push(pl);
+        totalHexes += (pl.territory || 0);
       }
+      players.sort(function(a, b) {
+        if (a.alive !== b.alive) return a.alive ? -1 : 1;
+        return (b.territory || 0) - (a.territory || 0);
+      });
+    }
+
+    var html = "";
+    for (var pi = 0; pi < players.length; pi++) {
+      var p = players[pi];
+      var color = p.color || OWNER_COLORS[p.idx] || "#888";
+      var pct = totalHexes > 0 ? Math.round((p.territory || 0) / totalHexes * 100) : 0;
+      html += '<div class="player-card' + (p.alive ? '' : ' dead') + '" style="border-left:3px solid ' + color + '">';
+      html += '<div class="player-name" style="color:' + color + '">';
+      if (!p.alive) html += '<span class="skull">\u2620</span>';
+      html += escHtml(p.name);
+      html += '<span class="rank" style="margin-left:auto">' + pct + '%</span>';
+      html += '</div>';
+      html += '<div class="player-stats">';
+      html += '<span class="stat"><span class="stat-icon">\u2B22</span>' + (p.territory || 0) + '</span>';
+      html += '<span class="stat"><span class="stat-icon">\u2694</span>' + (p.totalUnits || 0) + '</span>';
+      html += '<span class="stat"><span class="stat-icon" style="color:#fbbf24">\u2B23</span>' + (p.gold || 0) + '</span>';
+      html += '</div>';
+      html += '<div class="territory-bar-wrap"><div class="territory-bar-fill" style="width:' + pct + '%;background:' + color + ';opacity:0.6"></div></div>';
+      html += '</div>';
     }
     document.getElementById("players-list").innerHTML = html;
 
     // Combat log
+    processCombatFlashes(gameState.combatLog);
     var logHtml = "";
     if (gameState.combatLog) {
-      for (var e of gameState.combatLog) {
+      var entries = gameState.combatLog.slice().reverse();
+      for (var e of entries) {
         if (e.type === "combat") {
           var aName = gameState.players[e.attacker] ? gameState.players[e.attacker].name : "?";
+          var aColor = gameState.players[e.attacker] ? (gameState.players[e.attacker].color || OWNER_COLORS[e.attacker]) : "#aaa";
           var dName = gameState.players[e.defender] ? gameState.players[e.defender].name : "?";
-          logHtml += '<div class="combat-entry">' +
-            escHtml(aName) + ' (' + e.attackerUnits + ') vs ' +
-            escHtml(dName) + ' (' + e.defenderUnits + ') \u2192 ' +
-            e.result.replace(/_/g, ' ') +
-            (e.kingCaptured ? ' \u{1F451}' : '') +
-            '</div>';
+          var dColor = gameState.players[e.defender] ? (gameState.players[e.defender].color || OWNER_COLORS[e.defender]) : "#aaa";
+          var isKing = e.kingCaptured;
+          logHtml += '<div class="combat-entry' + (isKing ? ' king-capture' : '') + '">';
+          logHtml += '<span class="attacker" style="color:' + aColor + '">' + escHtml(aName) + '</span>';
+          logHtml += ' <span class="result-text">(' + e.attackerUnits + ') vs </span>';
+          logHtml += '<span class="defender" style="color:' + dColor + '">' + escHtml(dName) + '</span>';
+          logHtml += ' <span class="result-text">(' + e.defenderUnits + ') \u2192 ' + e.result.replace(/_/g, ' ') + '</span>';
+          if (isKing) logHtml += ' <span class="king-badge">\uD83D\uDC51 KING</span>';
+          logHtml += '</div>';
         } else if (e.type === "spawn") {
           var sName = gameState.players[e.player] ? gameState.players[e.player].name : "?";
-          logHtml += '<div class="combat-entry">' + escHtml(sName) + ' spawned ' + e.units + ' units</div>';
+          var sColor = gameState.players[e.player] ? (gameState.players[e.player].color || OWNER_COLORS[e.player]) : "#aaa";
+          logHtml += '<div class="combat-entry"><span style="color:' + sColor + '">' + escHtml(sName) + '</span> <span class="result-text">spawned ' + e.units + ' units</span></div>';
         }
       }
     }
-    document.getElementById("combat-log").innerHTML = logHtml || '<div style="color:#52525b;font-size:12px;">No combat this tick</div>';
+    document.getElementById("combat-log").innerHTML = logHtml || '<div style="color:#3f3f46;font-size:11px;">No combat this tick</div>';
 
     statusMsg.style.display = "none";
     render();
+  }
+
+  function showGameOver() {
+    var overlay = document.getElementById("game-over-overlay");
+    overlay.classList.add("visible");
+
+    var winner = null;
+    var winnerName = "Unknown";
+    if (gameState.players) {
+      for (var p of gameState.players) {
+        if (p.alive) { winner = p; winnerName = p.name; break; }
+      }
+    }
+    if (gameState.winner !== undefined && gameState.players && gameState.players[gameState.winner]) {
+      winner = gameState.players[gameState.winner];
+      winnerName = winner.name;
+    }
+
+    var winnerColor = winner ? (winner.color || "#fbbf24") : "#fbbf24";
+    document.getElementById("go-winner").textContent = winnerName;
+    document.getElementById("go-winner").style.color = winnerColor;
+    document.getElementById("go-reason").textContent = gameState.winReason || "Victory";
+
+    var scoresHtml = "";
+    if (gameState.players) {
+      var sorted = gameState.players.slice().sort(function(a, b) { return (b.territory || 0) - (a.territory || 0); });
+      for (var s of sorted) {
+        scoresHtml += '<div class="score-row"><span style="color:' + (s.color || "#888") + '">' +
+          (s.alive ? '' : '\u2620 ') + escHtml(s.name) + '</span><span style="color:#71717a">' +
+          (s.territory || 0) + ' hexes</span></div>';
+      }
+    }
+    document.getElementById("go-scores").innerHTML = scoresHtml;
+  }
+
+  function hideGameOver() {
+    document.getElementById("game-over-overlay").classList.remove("visible");
   }
 
   function escHtml(s) {
@@ -256,14 +623,42 @@
       var html = "";
       for (var i = 0; i < data.length && i < 10; i++) {
         html += '<div class="leaderboard-row"><span class="name">' +
+          (i === 0 ? '\uD83E\uDD47 ' : i === 1 ? '\uD83E\uDD48 ' : i === 2 ? '\uD83E\uDD49 ' : '') +
           escHtml(data[i].name) + '</span><span class="score">' +
           data[i].wins + 'W / ' + data[i].games + 'G</span></div>';
       }
-      document.getElementById("leaderboard").innerHTML = html || '<div style="color:#52525b;font-size:12px;">No games played yet</div>';
+      document.getElementById("leaderboard").innerHTML = html || '<div style="color:#3f3f46;font-size:11px;">No games played yet</div>';
     }).catch(function() {});
   }
   loadLeaderboard();
   setInterval(loadLeaderboard, 15000);
+
+  // History
+  function loadHistory() {
+    fetch("/api/history?limit=10").then(function(r) { return r.json(); }).then(function(data) {
+      var html = "";
+      if (!data || !data.length) {
+        html = '<div style="color:#3f3f46;font-size:11px;">No past games</div>';
+      } else {
+        for (var g of data) {
+          var d = g.date ? new Date(g.date).toLocaleDateString() : "";
+          html += '<div class="history-entry">';
+          html += '<span><span class="winner-name">\uD83C\uDFC6 ' + escHtml(g.winner || "?") + '</span>';
+          if (g.reason) html += ' <span style="color:#52525b">(' + escHtml(g.reason) + ')</span>';
+          html += '</span>';
+          html += '<span class="history-meta">';
+          if (g.ticks) html += g.ticks + 't ';
+          html += d + '</span>';
+          html += '</div>';
+        }
+      }
+      document.getElementById("history").innerHTML = html;
+    }).catch(function() {
+      document.getElementById("history").innerHTML = '<div style="color:#3f3f46;font-size:11px;">No past games</div>';
+    });
+  }
+  loadHistory();
+  setInterval(loadHistory, 30000);
 
   // WebSocket
   function connect() {
@@ -274,6 +669,7 @@
       try {
         var msg = JSON.parse(e.data);
         if (msg.type === "state" && msg.game) {
+          prevGameState = gameState;
           gameState = msg.game;
           updateUI();
         } else if (msg.type === "state" && !msg.game) {
@@ -281,6 +677,7 @@
           statusMsg.textContent = "Waiting for bots...";
         } else if (msg.type === "game_over") {
           loadLeaderboard();
+          loadHistory();
         }
       } catch (err) {}
     };
@@ -292,6 +689,11 @@
     ws.onerror = function() { ws.close(); };
   }
   connect();
+
+  // Dismiss game-over overlay on click
+  document.getElementById("game-over-overlay").addEventListener("click", function() {
+    hideGameOver();
+  });
 
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
