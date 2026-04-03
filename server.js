@@ -22,6 +22,8 @@ var BOTS_DIR = path.join(__dirname, "data", "bots");
 
 var PLAYER_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308"];
 var PLAYER_NAMES = ["Red", "Blue", "Green", "Yellow"];
+// Fixed color assignments per bot name: bmo=red, calne=blue, seb=green, tinyclaw=yellow
+var BOT_COLORS = { "bmo": "#ef4444", "calne": "#3b82f6", "seb": "#22c55e", "tinyclaw": "#eab308" };
 var SPAWN_POSITIONS = [
   { q: 8, r: -8 },   // Player 0: top-right
   { q: -8, r: 8 },   // Player 1: bottom-left
@@ -233,7 +235,7 @@ function createGame() {
     players.push({
       id: activeBots[i].name,
       name: activeBots[i].name,
-      color: PLAYER_COLORS[i],
+      color: BOT_COLORS[activeBots[i].name.toLowerCase()] || PLAYER_COLORS[i],
       alive: true,
       gold: 0,
       kingPos: { q: spawn.q, r: spawn.r },

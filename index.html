@@ -198,8 +198,8 @@
       -webkit-overflow-scrolling: touch;
       touch-action: auto;
     }
-    #canvas-wrap { min-height: 65vh; touch-action: none; }
-    canvas { touch-action: none; }
+    #canvas-wrap { min-height: 65vh; touch-action: pan-y; }
+    canvas { touch-action: pan-y; }
     header h1 { font-size: 16px; }
     .tick-bar-wrap { width: 80px; }
     #combat-log { height: 150px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
@@ -308,10 +308,12 @@
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     centerX = wrap.clientWidth / 2;
     centerY = wrap.clientHeight / 2;
-    // Scale hex grid to fit canvas — use width for horizontal, height for vertical
-    var hSize = Math.floor(wrap.clientWidth / (HEX_RADIUS * 3 + 2));
-    var vSize = Math.floor(wrap.clientHeight / ((HEX_RADIUS * 2 + 3) * Math.sqrt(3) / 2));
-    hexSize = Math.min(hSize, vSize);
+    // Scale hex grid to fit canvas with padding
+    var gridW = (2 * HEX_RADIUS + 1) * 1.5 + 0.5; // hex columns in width units
+    var gridH = (2 * HEX_RADIUS + 1) * Math.sqrt(3); // hex rows in height units
+    var hSize = (wrap.clientWidth * 0.95) / gridW;
+    var vSize = (wrap.clientHeight * 0.95) / gridH;
+    hexSize = Math.floor(Math.min(hSize, vSize));
     if (hexSize < 8) hexSize = 8;
     if (hexSize > 30) hexSize = 30;
     render();
@@ -731,6 +733,20 @@
         if (msg.type === "state" && msg.game) {
           prevGameState = gameState;
           gameState = msg.game;
+          // Update color arrays from server-assigned per-bot colors
+          if (gameState.players) {
+            for (var ci = 0; ci < gameState.players.length; ci++) {
+              if (gameState.players[ci].color) {
+                OWNER_COLORS[ci] = gameState.players[ci].color;
+                var cc = gameState.players[ci].color;
+                var m = cc.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+                if (m) {
+                  OWNER_BG[ci] = "rgba(" + parseInt(m[1],16) + "," + parseInt(m[2],16) + "," + parseInt(m[3],16) + ",0.25)";
+                  OWNER_GLOW[ci] = "rgba(" + parseInt(m[1],16) + "," + parseInt(m[2],16) + "," + parseInt(m[3],16) + ",0.12)";
+                }
+              }
+            }
+          }
           updateUI();
         } else if (msg.type === "state" && !msg.game) {
           statusMsg.style.display = "block";
