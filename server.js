@@ -19,10 +19,11 @@ var RESOURCE_INTERVAL = 5;
 var COMBAT_RATIO = 1.5;
 var DB_PATH = path.join(__dirname, "data", "hexconquest.db");
 var BOTS_DIR = path.join(__dirname, "data", "bots");
+var ROTATION_PATH = path.join(__dirname, "data", "rotation.json");
 
-var PLAYER_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308"];
-var PLAYER_NAMES = ["Red", "Blue", "Green", "Yellow"];
-// Fixed color assignments per bot name: bmo=red, calne=blue, seb=green, tinyclaw=yellow
+var PLAYER_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308", "#a855f7", "#f97316", "#ec4899", "#14b8a6"];
+var PLAYER_NAMES = ["Red", "Blue", "Green", "Yellow", "Purple", "Orange", "Pink", "Teal"];
+// Fixed color assignments per bot name
 var BOT_COLORS = { "bmo": "#ef4444", "calne": "#3b82f6", "seb": "#22c55e", "tinyclaw": "#eab308", "astro": "#a855f7" };
 var SPAWN_POSITIONS = [
   { q: 8, r: -8 },   // Player 0: top-right
@@ -206,12 +207,13 @@ function createGame() {
     return null;
   }
 
-  // Shuffle all bots first, then take up to 4 — ensures fair rotation when >4 bots
-  for (var si = bots.length - 1; si > 0; si--) {
+  // Select bots with rotation (ensures all registered bots get to play)
+  var activeBots = selectBotsForGame(bots);
+  // Fisher-Yates shuffle for random spawn positions
+  for (var si = activeBots.length - 1; si > 0; si--) {
     var sj = Math.floor(Math.random() * (si + 1));
-    var tmp = bots[si]; bots[si] = bots[sj]; bots[sj] = tmp;
+    var tmp = activeBots[si]; activeBots[si] = activeBots[sj]; activeBots[sj] = tmp;
   }
-  var activeBots = bots.slice(0, 4);
   var hexes = generateMap();
 
   var players = [];
@@ -307,6 +309,73 @@ function deleteBot(name) {
   if (!fs.existsSync(filePath)) return { error: "Bot not found" };
   fs.unlinkSync(filePath);
   return { ok: true };
+}
+
+// ============ BOT ROTATION ============
+
+function loadRotation() {
+  try {
+    return JSON.parse(fs.readFileSync(ROTATION_PATH, "utf-8"));
+  } catch (e) {
+    return { lastPlayed: [], sitOutQueue: [] };
+  }
+}
+
+function saveRotation(state) {
+  fs.writeFileSync(ROTATION_PATH, JSON.stringify(state, null, 2));
+}
+
+// Select up to MAX_PLAYERS bots using round-robin rotation.
+// Bots that sat out last game get priority. If 4 or fewer bots exist, all play every game.
+function selectBotsForGame(allBots) {
+  if (allBots.length <= MAX_PLAYERS) return allBots.slice();
+
+  var rotation = loadRotation();
+  var allNames = allBots.map(function(b) { return b.name; });
+
+  // Clean stale entries from sitOutQueue (bots that were deleted)
+  var nameSet = new Set(allNames);
+  rotation.sitOutQueue = rotation.sitOutQueue.filter(function(n) { return nameSet.has(n); });
+
+  // Bots that must play this round (they sat out last time)
+  var mustPlay = [];
+  var remaining = [];
+  for (var i = 0; i < allBots.length; i++) {
+    if (rotation.sitOutQueue.indexOf(allBots[i].name) !== -1) {
+      mustPlay.push(allBots[i]);
+    } else {
+      remaining.push(allBots[i]);
+    }
+  }
+
+  // If more must-play than slots, shuffle and take MAX_PLAYERS, rest go back to queue
+  var selected = [];
+  if (mustPlay.length >= MAX_PLAYERS) {
+    // Shuffle mustPlay
+    for (var si = mustPlay.length - 1; si > 0; si--) {
+      var sj = Math.floor(Math.random() * (si + 1));
+      var tmp = mustPlay[si]; mustPlay[si] = mustPlay[sj]; mustPlay[sj] = tmp;
+    }
+    selected = mustPlay.slice(0, MAX_PLAYERS);
+  } else {
+    selected = mustPlay.slice();
+    // Fill remaining slots from the rest, shuffled
+    for (var si = remaining.length - 1; si > 0; si--) {
+      var sj = Math.floor(Math.random() * (si + 1));
+      var tmp = remaining[si]; remaining[si] = remaining[sj]; remaining[sj] = tmp;
+    }
+    for (var i = 0; i < remaining.length && selected.length < MAX_PLAYERS; i++) {
+      selected.push(remaining[i]);
+    }
+  }
+
+  // Record who sat out this game
+  var selectedNames = new Set(selected.map(function(b) { return b.name; }));
+  var satOut = allNames.filter(function(n) { return !selectedNames.has(n); });
+
+  saveRotation({ lastPlayed: Array.from(selectedNames), sitOutQueue: satOut });
+
+  return selected;
 }
 
 // ============ BOT EXECUTION ============
@@ -835,6 +904,12 @@ app.delete("/api/bot/:name", function(req, res) {
   var result = deleteBot(req.params.name);
   if (result.error) return res.status(404).json(result);
   res.json({ ok: true });
+});
+
+app.get("/api/rotation", function(req, res) {
+  var rotation = loadRotation();
+  var bots = loadBots().map(function(b) { return b.name; });
+  res.json({ registeredBots: bots, lastPlayed: rotation.lastPlayed, sittingOut: rotation.sitOutQueue });
 });
 
 app.get("/api/leaderboard", function(req, res) {
