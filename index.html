@@ -308,8 +308,10 @@
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     centerX = wrap.clientWidth / 2;
     centerY = wrap.clientHeight / 2;
-    var minDim = Math.min(wrap.clientWidth, wrap.clientHeight);
-    hexSize = Math.floor(minDim / (HEX_RADIUS * 2 + 3) / 1.8);
+    // Scale hex grid to fit canvas — use width for horizontal, height for vertical
+    var hSize = Math.floor(wrap.clientWidth / (HEX_RADIUS * 3 + 2));
+    var vSize = Math.floor(wrap.clientHeight / ((HEX_RADIUS * 2 + 3) * Math.sqrt(3) / 2));
+    hexSize = Math.min(hSize, vSize);
     if (hexSize < 8) hexSize = 8;
     if (hexSize > 30) hexSize = 30;
     render();
