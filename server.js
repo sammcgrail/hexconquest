@@ -673,13 +673,13 @@ function endGame() {
   });
 
   // Auto-start new game after 5s
-  if (gameTimer) clearInterval(gameTimer);
+  if (gameTimer) clearTimeout(gameTimer);
   gameTimer = null;
   setTimeout(function() { startGame(); }, 5000);
 }
 
 function startGame() {
-  if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
+  if (gameTimer) { clearTimeout(gameTimer); gameTimer = null; }
   game = createGame();
   if (!game) {
     // Try again in 10s
@@ -689,7 +689,14 @@ function startGame() {
   console.log("Starting game " + game.id + " with " + game.players.length + " players: " +
     game.players.map(function(p) { return p.name; }).join(", "));
   broadcastState();
-  gameTimer = setInterval(processTick, TICK_MS);
+  // Use setTimeout chain instead of setInterval to prevent tick overlap
+  function scheduleNextTick() {
+    gameTimer = setTimeout(function() {
+      processTick();
+      if (game && game.phase === "playing") scheduleNextTick();
+    }, TICK_MS);
+  }
+  scheduleNextTick();
 }
 
 // ============ WEBSOCKET ============

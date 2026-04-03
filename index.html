@@ -220,7 +220,7 @@
   </div>
   <div class="header-info">
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-      <span id="tick-display">Tick 0 / 200</span>
+      <span id="tick-display">0 / 200</span>
       <div class="tick-bar-wrap"><div class="tick-bar-fill" id="tick-bar" style="width:0%"></div></div>
     </div>
     <span id="phase-display" class="phase-waiting">WAITING</span>
@@ -533,7 +533,7 @@
     // Tick
     var tick = gameState.tick || 0;
     var maxTicks = gameState.maxTicks || 200;
-    document.getElementById("tick-display").textContent = "Tick " + tick + " / " + maxTicks;
+    document.getElementById("tick-display").textContent = tick + " / " + maxTicks;
     document.getElementById("tick-bar").style.width = (tick / maxTicks * 100) + "%";
 
     // Game info
