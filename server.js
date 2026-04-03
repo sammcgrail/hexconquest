@@ -280,7 +280,18 @@ function saveBot(name, password, code, version) {
     }
   }
   var bot = { name: name, password: password, code: code, updated: new Date().toISOString() };
-  if (version) bot.version = version;
+  if (version) {
+    bot.version = version;
+  } else {
+    // Auto-increment version if not provided
+    if (fs.existsSync(filePath)) {
+      var existing = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      var prev = parseInt(existing.version) || 0;
+      bot.version = "" + (prev + 1);
+    } else {
+      bot.version = "1";
+    }
+  }
   fs.writeFileSync(filePath, JSON.stringify(bot, null, 2));
   return { ok: true };
 }
