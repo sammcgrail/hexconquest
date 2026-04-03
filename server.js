@@ -788,7 +788,7 @@ app.delete("/api/bot/:name", function(req, res) {
 });
 
 app.get("/api/leaderboard", function(req, res) {
-  var games = db.prepare("SELECT * FROM games ORDER BY date DESC LIMIT 100").all();
+  var games = db.prepare("SELECT * FROM games ORDER BY date DESC").all();
   var stats = {};
 
   for (var g of games) {
