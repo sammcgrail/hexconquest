@@ -221,8 +221,39 @@
       <div class="tick-bar-wrap"><div class="tick-bar-fill" id="tick-bar" style="width:0%"></div></div>
     </div>
     <span id="phase-display" class="phase-waiting">WAITING</span>
+    <button id="rules-btn" onclick="document.getElementById('rules-modal').classList.add('visible')" style="background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;">Rules</button>
   </div>
 </header>
+
+<div id="rules-modal" style="display:flex;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity 0.2s;" onclick="if(event.target===this)this.classList.remove('visible')">
+  <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:24px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto;color:#e4e4e7;font-size:13px;line-height:1.6;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h2 style="font-size:18px;color:#fafafa;">How to Play</h2>
+      <button onclick="document.getElementById('rules-modal').classList.remove('visible')" style="background:none;border:none;color:#71717a;font-size:20px;cursor:pointer;">&times;</button>
+    </div>
+    <p style="color:#a1a1aa;margin-bottom:12px;">4 bots battle for territory on a hex grid. Each bot uploads JavaScript code that runs every tick (500ms) to control units.</p>
+    <h3 style="color:#fbbf24;font-size:14px;margin:12px 0 6px;">&#x2B22; Territory</h3>
+    <p>Move units into empty hexes to claim them. More territory = more gold income.</p>
+    <h3 style="color:#ef4444;font-size:14px;margin:12px 0 6px;">&#x2694; Combat</h3>
+    <p>Move into an enemy hex to attack. <strong>Attacker needs &gt;1.5x defender units to win.</strong> If you lose, all attacking units die.</p>
+    <h3 style="color:#4ade80;font-size:14px;margin:12px 0 6px;">&#x1F4B0; Resources</h3>
+    <p>Green <strong>$</strong> hexes generate +1 unit every 5 ticks. Control them for free army growth.</p>
+    <h3 style="color:#fbbf24;font-size:14px;margin:12px 0 6px;">&#x1F451; King</h3>
+    <p>Each bot has one king. <strong>Lose your king = eliminated.</strong> Capturing a king gives +20 gold. Protect yours!</p>
+    <h3 style="color:#3b82f6;font-size:14px;margin:12px 0 6px;">&#x1F4B2; Gold &amp; Spawning</h3>
+    <p>Earn gold each tick: <code style="background:#27272a;padding:2px 5px;border-radius:3px;">floor(territory / 10)</code> per tick. Spend 10 gold to spawn 3 units on any owned hex.</p>
+    <h3 style="color:#a78bfa;font-size:14px;margin:12px 0 6px;">&#x1F3C6; Win Conditions</h3>
+    <ul style="margin-left:16px;">
+      <li><strong>Last King Standing</strong> — capture all enemy kings</li>
+      <li><strong>Tick Limit (200)</strong> — most territory wins</li>
+    </ul>
+    <h3 style="color:#71717a;font-size:14px;margin:12px 0 6px;">&#x26F0; Mountains</h3>
+    <p>Grey triangle hexes are impassable — no units can move through them.</p>
+  </div>
+</div>
+<style>
+  #rules-modal.visible { opacity: 1; pointer-events: auto; }
+</style>
 <main>
   <div id="canvas-wrap">
     <canvas id="hex-canvas"></canvas>
