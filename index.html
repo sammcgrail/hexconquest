@@ -438,12 +438,19 @@
       if (hex.units > 0 && hex.type !== "mountain") {
         var unitColor = hasOwner ? (OWNER_COLORS[hex.owner] || "#fff") : "#fff";
 
-        // King: gold border, crown
+        // King: player-colored border, crown
         if (hex.hasKing) {
+          var kingColor = hasOwner ? (OWNER_COLORS[hex.owner] || "#fbbf24") : "#fbbf24";
           ctx.save();
-          ctx.shadowColor = "#fbbf24";
-          ctx.shadowBlur = 6;
-          drawHex(p.x, p.y, hexSize - 1, null, "#fbbf24", 2);
+          ctx.shadowColor = kingColor;
+          ctx.shadowBlur = 8;
+          drawHex(p.x, p.y, hexSize - 1, null, kingColor, 3);
+          ctx.restore();
+          // Second inner glow ring for visibility
+          ctx.save();
+          ctx.shadowColor = kingColor;
+          ctx.shadowBlur = 4;
+          drawHex(p.x, p.y, hexSize - 4, null, kingColor, 1.5);
           ctx.restore();
 
           // Crown emoji
@@ -453,7 +460,7 @@
           ctx.fillText("\uD83D\uDC51", p.x, p.y - hexSize * 0.3);
 
           // Unit count below crown
-          ctx.fillStyle = "#fbbf24";
+          ctx.fillStyle = kingColor;
           ctx.font = "bold " + (hexSize * 0.4) + "px " + "'SF Mono','Fira Code',monospace";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
