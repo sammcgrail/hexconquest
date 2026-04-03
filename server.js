@@ -204,8 +204,13 @@ function createGame() {
     return null;
   }
 
-  // Take up to 4 bots
+  // Take up to 4 bots, shuffle spawn order for fairness
   var activeBots = bots.slice(0, 4);
+  // Fisher-Yates shuffle
+  for (var si = activeBots.length - 1; si > 0; si--) {
+    var sj = Math.floor(Math.random() * (si + 1));
+    var tmp = activeBots[si]; activeBots[si] = activeBots[sj]; activeBots[sj] = tmp;
+  }
   var hexes = generateMap();
 
   var players = [];
