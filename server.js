@@ -526,7 +526,21 @@ function endGame() {
     winner = alivePlayers[0].name;
     reason = "Last king standing";
   } else if (alivePlayers.length === 0) {
-    reason = "All kings fell";
+    // All kings fell same tick — winner is whoever had most territory
+    var best = null;
+    var bestTerritory = -1;
+    for (var p of game.players) {
+      var territory = 0;
+      for (var [k, h] of game.hexes) {
+        if (h.owner === game.players.indexOf(p)) territory++;
+      }
+      if (territory > bestTerritory) {
+        bestTerritory = territory;
+        best = p;
+      }
+    }
+    winner = best ? best.name : null;
+    reason = "All kings fell — most territory wins";
   } else {
     // Tick limit: most territory wins
     var best = null;
