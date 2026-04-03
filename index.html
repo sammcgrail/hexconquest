@@ -595,13 +595,19 @@
 
     var winner = null;
     var winnerName = "Unknown";
-    // Use winnerName from game_over event (most reliable)
-    if (gameState.winnerName && gameState.players) {
+    // Use winner from game state (set by server in serialized state)
+    if (gameState.winner && gameState.players) {
+      for (var p of gameState.players) {
+        if (p.name === gameState.winner) { winner = p; winnerName = p.name; break; }
+      }
+    }
+    // Fallback: winnerName from game_over WS event
+    if (!winner && gameState.winnerName && gameState.players) {
       for (var p of gameState.players) {
         if (p.name === gameState.winnerName) { winner = p; winnerName = p.name; break; }
       }
     }
-    // Fallback: check alive players
+    // Last fallback: check alive players
     if (!winner && gameState.players) {
       for (var p of gameState.players) {
         if (p.alive) { winner = p; winnerName = p.name; break; }

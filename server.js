@@ -570,6 +570,10 @@ function endGame() {
     game.tick
   );
 
+  // Store winner info on game object so serializeState() can include it
+  game.winner = winner;
+  game.winReason = reason;
+
   console.log("Game " + game.id + " finished: " + (winner || "draw") + " — " + reason);
 
   broadcastState();
@@ -640,7 +644,9 @@ function serializeState() {
       maxTicks: game.maxTicks,
       hexes: hexArray,
       players: playerInfo,
-      combatLog: game.combatLog
+      combatLog: game.combatLog,
+      winner: game.winner || null,
+      winReason: game.winReason || null
     }
   });
 }
