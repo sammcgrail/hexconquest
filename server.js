@@ -795,7 +795,13 @@ app.delete("/api/bot/:name", function(req, res) {
 });
 
 app.get("/api/leaderboard", function(req, res) {
-  var games = db.prepare("SELECT * FROM games ORDER BY date DESC").all();
+  var recent = parseInt(req.query.recent) || 0;
+  var games;
+  if (recent > 0) {
+    games = db.prepare("SELECT * FROM games ORDER BY date DESC LIMIT ?").all(recent);
+  } else {
+    games = db.prepare("SELECT * FROM games ORDER BY date DESC").all();
+  }
   var stats = {};
 
   for (var g of games) {

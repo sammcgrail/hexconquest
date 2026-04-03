@@ -200,8 +200,11 @@
     }
     #canvas-wrap { min-height: 65vh; touch-action: pan-y; }
     canvas { touch-action: pan-y; }
-    header h1 { font-size: 16px; }
-    .tick-bar-wrap { width: 80px; }
+    header h1 { font-size: 14px; white-space: nowrap; }
+    header { flex-wrap: nowrap; gap: 6px; padding: 8px 10px; }
+    .tick-bar-wrap { width: 60px; }
+    #tick-display { font-size: 11px; white-space: nowrap; }
+    .header-info { gap: 6px; }
     #combat-log { height: 150px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
     #players-list { max-height: none; overflow-y: visible; }
     #leaderboard { max-height: 100px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
@@ -266,7 +269,9 @@
       <div id="combat-log"></div>
     </div>
     <div class="panel">
-      <h2>Leaderboard</h2>
+      <h2>Leaderboard <span style="color:#52525b;font-size:10px">(last 100)</span></h2>
+      <div id="leaderboard-recent"></div>
+      <h2 style="margin-top:8px">All Time</h2>
       <div id="leaderboard"></div>
     </div>
     <div class="panel">
@@ -406,10 +411,10 @@
         fill = OWNER_BG[hex.owner] || fill;
         stroke = OWNER_COLORS[hex.owner] || stroke;
 
-        // Glow behind owned hexes
+        // Glow behind owned hexes (reduced blur for mobile perf)
         ctx.save();
         ctx.shadowColor = OWNER_COLORS[hex.owner] || "transparent";
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 4;
         drawHex(p.x, p.y, hexSize - 1, fill, null);
         ctx.restore();
       }
@@ -475,14 +480,8 @@
           var kingColor = hasOwner ? (OWNER_COLORS[hex.owner] || "#fbbf24") : "#fbbf24";
           ctx.save();
           ctx.shadowColor = kingColor;
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = 5;
           drawHex(p.x, p.y, hexSize - 1, null, kingColor, 3);
-          ctx.restore();
-          // Second inner glow ring for visibility
-          ctx.save();
-          ctx.shadowColor = kingColor;
-          ctx.shadowBlur = 4;
-          drawHex(p.x, p.y, hexSize - 4, null, kingColor, 1.5);
           ctx.restore();
 
           // Crown emoji
@@ -680,16 +679,22 @@
   }
 
   // Leaderboard
+  function renderLeaderboard(data, elementId) {
+    var html = "";
+    for (var i = 0; i < data.length && i < 10; i++) {
+      html += '<div class="leaderboard-row"><span class="name">' +
+        (i === 0 ? '\uD83E\uDD47 ' : i === 1 ? '\uD83E\uDD48 ' : i === 2 ? '\uD83E\uDD49 ' : '') +
+        escHtml(data[i].name) + '</span><span class="score">' +
+        data[i].wins + 'W / ' + data[i].games + 'G</span></div>';
+    }
+    document.getElementById(elementId).innerHTML = html || '<div style="color:#3f3f46;font-size:11px;">No games yet</div>';
+  }
   function loadLeaderboard() {
+    fetch("/api/leaderboard?recent=100").then(function(r) { return r.json(); }).then(function(data) {
+      renderLeaderboard(data, "leaderboard-recent");
+    }).catch(function() {});
     fetch("/api/leaderboard").then(function(r) { return r.json(); }).then(function(data) {
-      var html = "";
-      for (var i = 0; i < data.length && i < 10; i++) {
-        html += '<div class="leaderboard-row"><span class="name">' +
-          (i === 0 ? '\uD83E\uDD47 ' : i === 1 ? '\uD83E\uDD48 ' : i === 2 ? '\uD83E\uDD49 ' : '') +
-          escHtml(data[i].name) + '</span><span class="score">' +
-          data[i].wins + 'W / ' + data[i].games + 'G</span></div>';
-      }
-      document.getElementById("leaderboard").innerHTML = html || '<div style="color:#3f3f46;font-size:11px;">No games played yet</div>';
+      renderLeaderboard(data, "leaderboard");
     }).catch(function() {});
   }
   loadLeaderboard();
